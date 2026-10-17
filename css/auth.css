@@ -1,0 +1,83 @@
+/* ===== MÂY SOCIAL — GIAO DIỆN ĐĂNG NHẬP / ĐĂNG KÝ MỚI ===== */
+.lg {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 560px);
+  column-gap: 5vw;
+  align-items: center;
+  padding: 4.5vh 6.6vw 4.5vh 7vw;
+  background: linear-gradient(135deg, #fbfaff 0%, #f7f5ff 55%, #f9f8ff 100%);
+  overflow: hidden;
+  isolation: isolate;
+}
+.lg-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+
+/* ---------- Cột trái ---------- */
+.lg-left { display: flex; flex-direction: column; align-self: stretch; padding: 1vh 0; min-width: 0; }
+.lg-brand { display: flex; align-items: center; gap: 14px; font-size: 27px; font-weight: 700; color: #14143a; letter-spacing: -.01em; }
+.lg-left h1 { margin-top: 5.5vh; font-size: clamp(32px, 3.15vw, 48px); line-height: 1.13; font-weight: 800; letter-spacing: -.02em; color: #0f0f33; }
+.lg-left h1 b { background: linear-gradient(90deg, #5b4fe0 0%, #7b6bf2 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lg-sub { margin-top: 2.2vh; font-size: clamp(16px, 1.45vw, 21px); line-height: 1.42; color: #7b7a9a; }
+.lg-art { width: min(100%, 640px); height: auto; margin: 3vh 0 0 clamp(0px, 4vw, 70px); flex: 0 1 auto; min-height: 0; }
+.lg-tag { margin-top: auto; padding-top: 3vh; font-size: 17px; line-height: 1.55; color: #7b7a9a; }
+.lg-tag i { display: block; width: 52px; height: 6px; border-radius: 6px; background: #8f82f3; margin-bottom: 14px; }
+
+/* ---------- Thẻ form ---------- */
+.lg-card {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #f0eef8;
+  border-radius: 28px;
+  padding: 30px 32px 28px;
+  box-shadow: 0 24px 70px rgba(91, 79, 224, .10), 0 2px 8px rgba(91, 79, 224, .04);
+}
+.lg-tabs { display: grid; grid-template-columns: 1fr 1fr; background: #f3f2f9; border-radius: 14px; overflow: hidden; margin-bottom: 26px; }
+.lg-tabs button { height: 46px; font-size: 16px; font-weight: 500; color: #6f6e8e; background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer; transition: .15s; }
+.lg-tabs button.on { background: #ffeeec; color: #ef4a38; border-bottom-color: #ff6f61; }
+.lg-card h2 { margin: 0; font-size: 32px; line-height: 1.15; font-weight: 800; color: #0f0f33; letter-spacing: -.02em; }
+.lg-card-sub { margin: 6px 0 4px; font-size: 16px; color: #7b7a9a; }
+.lg-lbl { display: block; margin: 14px 0 7px; font-size: 15px; font-weight: 500; color: #14143a; }
+.lg-input { display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 14px; background: #fdfdff; border: 1px solid #e9e8f3; border-radius: 12px; color: #6f6e8e; transition: border-color .15s, box-shadow .15s; }
+.lg-input:focus-within { border-color: #7b6bf2; box-shadow: 0 0 0 3px rgba(123, 107, 242, .14); }
+.lg-ic { display: flex; flex: none; }
+.lg-input input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font-size: 15px; color: #14143a; }
+.lg-input input::placeholder { color: #a8a7c3; }
+.lg-eye { display: flex; flex: none; padding: 4px; border: 0; background: transparent; color: #6f6e8e; cursor: pointer; }
+.lg-eye:hover { color: #14143a; }
+
+.lg-opts { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 16px 0 18px; font-size: 14.5px; }
+.lg-chk { display: flex; align-items: center; gap: 10px; color: #3f3e63; cursor: pointer; }
+.lg-chk input { appearance: none; -webkit-appearance: none; flex: none; width: 20px; height: 20px; margin: 0; border-radius: 6px; border: 1.5px solid #cfcde4; background: #fff; display: grid; place-content: center; cursor: pointer; transition: .15s; }
+.lg-chk input:checked { background: #2f6bf0; border-color: #2f6bf0; }
+.lg-chk input:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2.2px 2.2px 0; transform: translateY(-1px) rotate(45deg); }
+.lg-chk a { color: #1d63e8; text-decoration: underline; text-underline-offset: 2px; }
+.lg-forgot { color: #5b4fe0; text-decoration: none; font-weight: 500; }
+.lg-forgot:hover { text-decoration: underline; }
+
+.lg-btn { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; height: 46px; border: 0; border-radius: 12px; background: #ff7366; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; transition: background .15s, transform .05s; }
+.lg-btn:hover { background: #fa6254; }
+.lg-btn:active { transform: translateY(1px); }
+.lg-btn:disabled { opacity: .6; cursor: not-allowed; }
+.lg-google { background: #fff; color: #14143a; border: 1px solid #dcdbec; font-weight: 500; }
+.lg-google:hover { background: #f8f7fd; }
+.lg-or { display: flex; align-items: center; gap: 14px; margin: 14px 0; color: #8b8aa8; font-size: 15px; }
+.lg-or::before, .lg-or::after { content: ""; flex: 1; height: 1px; background: #ebeaf4; }
+.lg-sw { margin-top: 16px; text-align: center; font-size: 15.5px; color: #7b7a9a; }
+.lg-sw a { color: #1d63e8; font-weight: 500; cursor: pointer; }
+.lg-sw a:hover { text-decoration: underline; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+  .lg { grid-template-columns: minmax(0, 1fr) minmax(0, 480px); column-gap: 32px; padding: 32px 28px; }
+  .lg-art { display: none; }
+  .lg-tag { margin-top: 28px; }
+}
+@media (max-width: 860px) {
+  .lg { grid-template-columns: 1fr; row-gap: 28px; padding: 24px 16px 40px; align-items: start; }
+  .lg-left { align-self: auto; }
+  .lg-left h1 { margin-top: 24px; font-size: 32px; }
+  .lg-tag { display: none; }
+  .lg-card { max-width: 560px; margin: 0 auto; padding: 24px 20px; border-radius: 22px; }
+  .lg-card h2 { font-size: 28px; }
+}
