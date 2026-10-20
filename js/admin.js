@@ -20,6 +20,7 @@ import {
   deleteDoc,
   runTransaction,
   serverTimestamp,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
@@ -72,7 +73,10 @@ const I = (n, s = 20) =>
   `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${P[n]}"/></svg>`;
 
 /* ---------- Hằng số ---------- */
-const PF = { facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", google: "Google" };
+const PF = {
+  facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", google: "Google",
+  instagram: "Instagram", telegram: "Telegram", twitter: "Twitter/X", threads: "Threads", shopee: "Shopee", other: "Khác",
+};
 const ST = {
   pending: ["Chờ xử lý", "wa"],
   processing: ["Đang xử lý", "pr"],
@@ -203,6 +207,7 @@ function shell() {
   const r = route();
   const pages = { dashboard: pgDash, users: pgUsers, services: pgSvc, orders: pgOrd, topups: pgTop, tickets: pgTk, logs: pgLog, settings: pgSet };
   const p = (pages[r] || pgDash)();
+  if (EXP[r] && !p.act) p.act = ddm(r);
   const cur = pages[r] ? r : "dashboard";
   const nav = [
     ["dashboard", "dash", "Tổng quan"], ["users", "users", "Người dùng"], ["services", "box", "Dịch vụ"],
@@ -284,25 +289,6 @@ function pgUsers() {
 }
 
 /* ---------- Dịch vụ ---------- */
-function svcList() {
-  const f = S.services
-    .filter((s) => (S.f === "all" || s.platform === S.f || (S.f === "off" && !s.active)) && has(S.q, `${s.name} ${PF[s.platform] || ""}`))
-    .sort((a, b) => String(a.platform).localeCompare(b.platform) || String(a.name).localeCompare(b.name));
-  if (!f.length) return empty(S.services.length ? "Không có dịch vụ phù hợp" : "Chưa có dịch vụ nào. Bấm “Thêm dịch vụ” để bắt đầu.");
-  const { rows, pager } = paged(f);
-  return tbl(["Dịch vụ", "Nền tảng", ">Giá / 1.000", ">Min – Max", "Trạng thái", ""], rows.map((s) =>
-    `<tr><td><b>${esc(s.name)}</b>${s.popular ? ' <span class="st pr">Phổ biến</span>' : ""}<span class="sub">${esc(s.desc)}</span></td><td>${PF[s.platform] || esc(s.platform)}</td>
-    <td class="r">${vnd(s.pricePer1000)}</td><td class="r">${num(s.min)} – ${num(s.max)}</td><td>${s.active ? '<span class="st ok">Đang bán</span>' : '<span class="st">Tạm ẩn</span>'}</td>
-    <td><div class="acts"><button class="btn sm line" data-act="tgsvc" data-v="${s.id}">${s.active ? "Ẩn" : "Bật"}</button><button class="btn sm" data-act="svc" data-v="${s.id}">Sửa</button><button class="btn sm er" data-act="delsvc" data-v="${s.id}">Xóa</button></div></td></tr>`)) + pager;
-}
-function pgSvc() {
-  return {
-    title: "Dịch vụ", sub: "Thêm, chỉnh giá, bật/tắt dịch vụ hiển thị cho người dùng",
-    act: `<button class="btn" data-act="svc" data-v="">${I("plus")} Thêm dịch vụ</button>`,
-    body: bar("Tìm dịch vụ", chips([["all", "Tất cả"], ...Object.entries(PF), ["off", "Đang ẩn"]])) + `<div class="card" id="list">${svcList()}</div>`,
-  };
-}
-
 /* ---------- Đơn hàng ---------- */
 function ordList() {
   const f = S.orders.filter((o) => (S.f === "all" || o.status === S.f) && has(S.q, `${o.code} ${o.serviceName} ${o.link} ${o.uid}`));
@@ -600,4 +586,393 @@ document.addEventListener("input", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && e.target.id === "l_pw") A.login($(".lgc .btn"));
+});
+
+/* =====================================================================
+   NHẬP / XUẤT / SỬA – XÓA HÀNG LOẠT
+   >>> DÁN TOÀN BỘ ĐOẠN NÀY VÀO CUỐI FILE js/admin.js <<<
+   ===================================================================== */
+Object.assign(P, {
+  down: "M12 4v11M7 11l5 5 5-5M5 20h14",
+  up: "M12 16V5M7 9l5-5 5 5M5 20h14",
+});
+S.sel = new Set(); // id dịch vụ đang được tick chọn
+S.imp = null; // dữ liệu nhập đang xem trước
+
+/* ---------- Tiện ích file ---------- */
+// Chuẩn hóa tên cột: bỏ dấu, bỏ ký tự lạ, viết thường ("Giá / 1.000" → "gia1000")
+const nk = (s) =>
+  String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toLowerCase().replace(/[^a-z0-9]/g, "");
+const stamp = () => new Date().toISOString().slice(0, 10);
+const dl = (name, blob) => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+// Chống CSV injection: ô chữ bắt đầu bằng = + - @ sẽ được thêm dấu ' phía trước
+const csvCell = (v) => {
+  let s = v == null ? "" : String(v);
+  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",;\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+// BOM + "sep=," để Excel (kể cả bản tiếng Việt dùng dấu ;) mở đúng cột và đúng tiếng Việt
+const toCSV = (head, rows) => "\uFEFFsep=,\r\n" + [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
+// Thư viện Excel chỉ tải khi cần dùng (SheetJS)
+let _xl;
+const xlsx = () =>
+(_xl ||= import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs").catch(() => {
+  _xl = null;
+  throw new Error("Không tải được thư viện Excel (kiểm tra mạng) – hãy dùng CSV hoặc JSON");
+}));
+async function saveTable(fmt, name, head, rows) {
+  const file = `${name}-${stamp()}`;
+  if (fmt === "xlsx") {
+    const X = await xlsx(), wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([head, ...rows]), "Data");
+    X.writeFile(wb, file + ".xlsx");
+  } else if (fmt === "json") {
+    const data = rows.map((r) => Object.fromEntries(head.map((h, i) => [h, r[i]])));
+    dl(file + ".json", new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  } else dl(file + ".csv", new Blob([toCSV(head, rows)], { type: "text/csv;charset=utf-8" }));
+}
+function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, "");
+  const m = text.match(/^sep=(.)\r?\n/i);
+  if (m) text = text.slice(m[0].length);
+  const first = text.split(/\r?\n/, 1)[0];
+  const d = m ? m[1] : [",", ";", "\t"].map((c) => [c, first.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = [];
+  let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === d) { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); rows.push(row); row = []; cell = "";
+    } else cell += c;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter((r) => r.some((x) => String(x).trim() !== ""));
+}
+
+/* ---------- Cấu trúc cột dịch vụ ---------- */
+const SVC_HEAD = ["ID", "Nền tảng", "Tên dịch vụ", "Mô tả", "Giá / 1.000", "Min", "Max", "Đang bán", "Phổ biến", "Điểm nổi bật", "Lưu ý", "Xóa"];
+const svcRow = (s) => [
+  s.id, s.platform, s.name, s.desc || "", Number(s.pricePer1000) || 0, Number(s.min) || 0, Number(s.max) || 0,
+  s.active ? "Có" : "Không", s.popular ? "Có" : "Không",
+  (s.features || []).map((f) => `${f.t} | ${f.d || ""}`).join("\n"), (s.notes || []).join("\n"), "",
+];
+const SVC_TPL = [
+  ["", "facebook", "Tăng like bài viết Facebook", "Like từ tài khoản thật, bảo hành 7 ngày", 25000, 100, 10000, "Có", "Có",
+    "Lên nhanh | Bắt đầu trong 5–30 phút\nBảo hành | 7 ngày", "Không hỗ trợ trang riêng tư\nKhông đặt 2 đơn cùng liên kết", ""],
+  ["", "tiktok", "Tăng follow TikTok", "Follow ổn định, ít rớt", 60000, 100, 5000, "Có", "Không", "", "Để tài khoản ở chế độ công khai", ""],
+];
+// Từ khóa cho ô Có/Không (đã chuẩn hóa bằng nk)
+const TRUE_V = ["1", "true", "yes", "y", "x", "co", "bat", "on", "dangban", "hienthi", "ban"];
+const FALSE_V = ["0", "false", "no", "n", "khong", "tat", "off", "an", "taman", "dangan"];
+// Tên cột chấp nhận (tiếng Việt / tiếng Anh, không phân biệt hoa-thường, dấu)
+const COLS = {
+  id: ["id", "ma"],
+  platform: ["platform", "nentang"],
+  name: ["name", "ten", "tendichvu"],
+  desc: ["desc", "description", "mota"],
+  pricePer1000: ["priceper1000", "price", "gia", "gia1000", "giamoi1000"],
+  min: ["min", "toithieu", "soluongtoithieu"],
+  max: ["max", "toida", "soluongtoida"],
+  active: ["active", "dangban", "trangthai", "hienthi"],
+  popular: ["popular", "phobien"],
+  features: ["features", "diemnoibat"],
+  notes: ["notes", "luuy"],
+  delete: ["delete", "xoa"],
+};
+const ALIAS = Object.fromEntries(Object.entries(COLS).flatMap(([f, a]) => a.map((x) => [x, f])));
+const FIELDS = ["platform", "name", "desc", "pricePer1000", "min", "max", "active", "popular", "features", "notes"];
+const mapKeys = (o) => {
+  const r = {};
+  for (const [k, x] of Object.entries(o || {})) {
+    const f = ALIAS[nk(k)];
+    if (f) r[f] = typeof x === "string" ? x.replace(/^'(?=[=+\-@])/, "") : x;
+  }
+  return r;
+};
+const toBool = (v) => {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  const k = nk(v);
+  return TRUE_V.includes(k) ? true : FALSE_V.includes(k) ? false : undefined;
+};
+const toNum = (v) => {
+  if (typeof v === "number") return Math.round(v);
+  const s = String(v).replace(/\D/g, "");
+  return s === "" ? NaN : Number(s);
+};
+const parseFeat = (v) =>
+  (Array.isArray(v) ? v : String(v).split(/\r?\n|\s*\|\|\s*/))
+    .map((x) => {
+      if (x && typeof x === "object") return { t: String(x.t ?? ""), d: String(x.d ?? "") };
+      const [t, ...d] = String(x).split("|");
+      return { t, d: d.join("|") };
+    })
+    .map((f) => ({ t: f.t.trim().slice(0, 120), d: f.d.trim().slice(0, 300) }))
+    .filter((f) => f.t)
+    .slice(0, 10);
+const parseNotes = (v) =>
+  (Array.isArray(v) ? v : String(v).split(/\r?\n|\s*\|\|\s*/)).map((x) => String(x).trim().slice(0, 300)).filter(Boolean).slice(0, 10);
+
+/* ---------- Ghi hàng loạt (tối đa 400 thao tác / batch) ---------- */
+async function commitOps(ops) {
+  for (let i = 0; i < ops.length; i += 400) {
+    const b = writeBatch(db);
+    ops.slice(i, i + 400).forEach((o) => {
+      const r = doc(db, "services", o.id);
+      if (o.t === "del") b.delete(r);
+      else if (o.t === "add") b.set(r, o.d);
+      else b.update(r, o.d);
+    });
+    await b.commit();
+  }
+}
+
+/* ---------- Lập kế hoạch nhập: kiểm tra từng dòng, chưa ghi gì ---------- */
+function planImport(recs, rep) {
+  const byId = new Map(S.services.map((s) => [s.id, s]));
+  const byKey = new Map(S.services.map((s) => [`${s.platform}|${String(s.name).trim().toLowerCase()}`, s]));
+  const seen = new Set(), hit = new Set(), ops = [], prev = [], errs = [];
+  const P_ = { add: 0, upd: 0, del: 0, same: 0 };
+  recs.forEach(({ line, v: raw }) => {
+    const bad = (m) => errs.push(`Dòng ${line}: ${m}`);
+    const got = (k) => raw[k] !== undefined && raw[k] !== null && String(raw[k]).trim() !== "";
+    const id = got("id") ? String(raw.id).trim() : "";
+    if (id && !/^[A-Za-z0-9_-]{1,100}$/.test(id)) return bad("ID không hợp lệ");
+    let pf;
+    if (got("platform")) {
+      pf = Object.keys(PF).find((k) => k === nk(raw.platform) || nk(PF[k]) === nk(raw.platform));
+      if (!pf) return bad(`nền tảng “${raw.platform}” không hợp lệ (dùng: ${Object.keys(PF).join(", ")})`);
+    }
+    const nm = got("name") ? String(raw.name).trim() : "";
+    // Khớp dịch vụ cũ: theo ID, nếu không có ID thì theo Nền tảng + Tên
+    const ex = id ? byId.get(id) : pf && nm ? byKey.get(`${pf}|${nm.toLowerCase()}`) : undefined;
+    if (ex) hit.add(ex.id);
+    if (got("delete") && toBool(raw.delete) === true) {
+      if (!ex) return bad("không tìm thấy dịch vụ để xóa (cần ID, hoặc Nền tảng + Tên)");
+      if (seen.has(ex.id)) return bad("trùng với dòng khác trong tệp");
+      seen.add(ex.id);
+      ops.push({ t: "del", id: ex.id }); P_.del++; prev.push(["del", ex.name, ex.platform, ex.pricePer1000]);
+      return;
+    }
+    const base = ex
+      ? { platform: ex.platform, name: ex.name, desc: ex.desc || "", pricePer1000: Number(ex.pricePer1000) || 0, min: Number(ex.min) || 0, max: Number(ex.max) || 0, active: !!ex.active, popular: !!ex.popular, features: ex.features || [], notes: ex.notes || [] }
+      : { platform: pf, name: nm, desc: "", pricePer1000: 0, min: 100, max: 10000, active: true, popular: false, features: [], notes: [] };
+    const d = { ...base };
+    if (pf) d.platform = pf;
+    if (nm) d.name = nm;
+    if (got("desc")) d.desc = String(raw.desc).trim();
+    for (const k of ["pricePer1000", "min", "max"])
+      if (got(k)) { d[k] = toNum(raw[k]); if (!Number.isFinite(d[k])) return bad(`cột “${k}” không phải số`); }
+    for (const k of ["active", "popular"])
+      if (got(k)) { const b = toBool(raw[k]); if (b === undefined) return bad(`giá trị “${raw[k]}” không hợp lệ (dùng Có / Không)`); d[k] = b; }
+    if (got("features")) d.features = parseFeat(raw.features);
+    if (got("notes")) d.notes = parseNotes(raw.notes);
+    // Cùng luật kiểm tra như form “Thêm / Sửa dịch vụ”
+    if (!PF[d.platform]) return bad("thiếu nền tảng");
+    if (d.name.length < 2 || d.name.length > 100) return bad("tên dịch vụ phải 2–100 ký tự");
+    if (d.desc.length > 300) return bad("mô tả tối đa 300 ký tự");
+    if (d.pricePer1000 <= 0) return bad("giá phải lớn hơn 0");
+    if (d.min < 1 || d.max < d.min) return bad("số lượng min/max không hợp lệ");
+    const key = ex ? ex.id : id || `${d.platform}|${d.name.toLowerCase()}`;
+    if (seen.has(key)) return bad("trùng với dòng khác trong tệp");
+    seen.add(key);
+    if (ex) {
+      if (FIELDS.every((k) => JSON.stringify(d[k]) === JSON.stringify(base[k]))) { P_.same++; return; }
+      ops.push({ t: "upd", id: ex.id, d: { ...d, updatedAt: serverTimestamp() } });
+      P_.upd++; prev.push(["upd", d.name, d.platform, d.pricePer1000]);
+    } else {
+      ops.push({ t: "add", id: id || doc(collection(db, "services")).id, d: { ...d, createdAt: serverTimestamp(), updatedAt: serverTimestamp() } });
+      P_.add++; prev.push(["add", d.name, d.platform, d.pricePer1000]);
+    }
+  });
+  // Chế độ đồng bộ: xóa dịch vụ hiện có nhưng không xuất hiện trong tệp
+  if (rep)
+    S.services.filter((s) => !hit.has(s.id)).forEach((s) => {
+      ops.push({ t: "del", id: s.id }); P_.del++; prev.push(["del", s.name, s.platform, s.pricePer1000]);
+    });
+  return { ops, errs, prevAll: prev, prev: prev.slice(0, 10), ...P_ };
+}
+
+/* ---------- Danh sách dịch vụ (có tick chọn) — THAY cho svcList/pgSvc cũ ---------- */
+const svcFiltered = () =>
+  S.services
+    .filter((s) => (S.f === "all" || s.platform === S.f || (S.f === "off" && !s.active)) && has(S.q, `${s.name} ${PF[s.platform] || ""}`))
+    .sort((a, b) => String(a.platform).localeCompare(b.platform) || String(a.name).localeCompare(b.name));
+const refreshList = () => { const l = $("#list"); if (l) l.innerHTML = svcList(); };
+function svcList() {
+  const f = svcFiltered();
+  const selN = S.services.filter((s) => S.sel.has(s.id)).length;
+  const bulk = selN
+    ? `<div class="bulk"><b>Đã chọn ${selN}</b>
+    <button class="btn sm line" data-act="bk" data-v="on">Bật bán</button>
+    <button class="btn sm line" data-act="bk" data-v="off">Tạm ẩn</button>
+    <button class="btn sm line" data-act="bk" data-v="price">Chỉnh giá %</button>
+    <button class="btn sm line" data-act="exp" data-v="svcsel:csv">Xuất CSV</button>
+    <button class="btn sm er" data-act="bk" data-v="del">Xóa đã chọn</button><span class="sp"></span>
+    <button class="btn sm line" data-act="selclr">Bỏ chọn</button></div>`
+    : "";
+  if (!f.length) return bulk + empty(S.services.length ? "Không có dịch vụ phù hợp" : "Chưa có dịch vụ nào. Bấm “Thêm dịch vụ” hoặc “Nhập dữ liệu” để bắt đầu.");
+  const { rows, pager } = paged(f);
+  const all = f.every((s) => S.sel.has(s.id));
+  return bulk + tbl([`<input type="checkbox" class="ckc" data-act="selall" ${all ? "checked" : ""} title="Chọn tất cả ${f.length} dịch vụ đang hiển thị">`, "Dịch vụ", "Nền tảng", ">Giá / 1.000", ">Min – Max", "Trạng thái", ""], rows.map((s) =>
+    `<tr><td><input type="checkbox" class="ckc" data-act="sel" data-v="${s.id}" ${S.sel.has(s.id) ? "checked" : ""}></td>
+    <td><b>${esc(s.name)}</b>${s.popular ? ' <span class="st pr">Phổ biến</span>' : ""}<span class="sub">${esc(s.desc)}</span></td><td>${PF[s.platform] || esc(s.platform)}</td>
+    <td class="r">${vnd(s.pricePer1000)}</td><td class="r">${num(s.min)} – ${num(s.max)}</td><td>${s.active ? '<span class="st ok">Đang bán</span>' : '<span class="st">Tạm ẩn</span>'}</td>
+    <td><div class="acts"><button class="btn sm line" data-act="tgsvc" data-v="${s.id}">${s.active ? "Ẩn" : "Bật"}</button><button class="btn sm" data-act="svc" data-v="${s.id}">Sửa</button><button class="btn sm er" data-act="delsvc" data-v="${s.id}">Xóa</button></div></td></tr>`)) + pager;
+}
+
+/* ---------- Menu Xuất + dữ liệu xuất của các trang khác ---------- */
+const em = (uid) => S.users.find((x) => x.uid === uid)?.email || "";
+const EXP = {
+  services: ["dich-vu"],
+  users: ["nguoi-dung", () => S.users, [["UID", (u) => u.uid], ["Email", (u) => u.email || ""], ["Tên hiển thị", (u) => u.displayName || ""], ["Số dư", (u) => Number(u.balance) || 0], ["Trạng thái", (u) => (u.disabled ? "Đã khóa" : "Hoạt động")], ["Ngày tạo", (u) => fdt(u.createdAt)]]],
+  orders: ["don-hang", () => S.orders, [["Mã đơn", (o) => o.code], ["UID", (o) => o.uid], ["Email", (o) => em(o.uid)], ["Dịch vụ", (o) => o.serviceName || ""], ["Nền tảng", (o) => PF[o.platform] || o.platform || ""], ["Liên kết", (o) => o.link || ""], ["Số lượng", (o) => Number(o.quantity) || 0], ["Tổng tiền", (o) => Number(o.total) || 0], ["Trạng thái", (o) => ST[o.status]?.[0] || o.status || ""], ["Ngày tạo", (o) => fdt(o.createdAt)]]],
+  topups: ["nap-tien", () => S.topups, [["Mã nạp", (t) => t.code], ["UID", (t) => t.uid], ["Email", (t) => em(t.uid)], ["Số tiền", (t) => Number(t.amount) || 0], ["Trạng thái", (t) => TST[t.status || "pending"]?.[0] || ""], ["Ngày tạo", (t) => fdt(t.createdAt)]]],
+  tickets: ["ho-tro", () => S.tickets, [["Tiêu đề", (t) => t.subject || ""], ["UID", (t) => t.uid], ["Email", (t) => em(t.uid)], ["Nội dung", (t) => t.message || ""], ["Phản hồi", (t) => t.reply || ""], ["Trạng thái", (t) => KST[t.status || "open"]?.[0] || ""], ["Ngày gửi", (t) => fdt(t.createdAt)]]],
+  logs: ["lich-su-so-du", () => S.logs, [["Thời gian", (l) => fdt(l.createdAt)], ["UID", (l) => l.uid], ["Email", (l) => em(l.uid)], ["Loại", (l) => LOGT[l.type] || l.type || ""], ["Biến động", (l) => Number(l.amount) || 0], ["Số dư sau", (l) => Number(l.balanceAfter) || 0], ["Ghi chú", (l) => l.note || ""], ["Thực hiện", (l) => em(l.by) || l.by || ""]]],
+};
+const ddm = (r) => {
+  const items = r === "services"
+    ? [["Tất cả dịch vụ · CSV", "svc:csv"], ["Tất cả dịch vụ · Excel (.xlsx)", "svc:xlsx"], ["Tất cả dịch vụ · JSON", "svc:json"], ["Đang lọc / tìm · CSV", "svcview:csv"], ["Đang lọc / tìm · Excel (.xlsx)", "svcview:xlsx"]]
+    : [["Xuất CSV", `${r}:csv`], ["Xuất Excel (.xlsx)", `${r}:xlsx`], ["Xuất JSON", `${r}:json`]];
+  return `<details class="dd"><summary class="btn line">${I("down")} Xuất dữ liệu</summary><div class="ddm">${items.map(([t, v]) => `<button data-act="exp" data-v="${v}">${t}</button>`).join("")}</div></details>`;
+};
+function pgSvc() {
+  return {
+    title: "Dịch vụ", sub: "Thêm, chỉnh giá, bật/tắt dịch vụ hiển thị cho người dùng",
+    act: `<div class="tools">${ddm("services")}<button class="btn line" data-act="imp">${I("up")} Nhập dữ liệu</button><button class="btn" data-act="svc" data-v="">${I("plus")} Thêm dịch vụ</button></div>`,
+    body: bar("Tìm dịch vụ", chips([["all", "Tất cả"], ...Object.entries(PF), ["off", "Đang ẩn"]])) + `<div class="card" id="list">${svcList()}</div>`,
+  };
+}
+
+/* ---------- Màn hình nhập: chọn tệp → xem trước → áp dụng ---------- */
+function showImport() {
+  const { recs, rep, file } = S.imp, pl = planImport(recs, rep);
+  S.imp.plan = pl;
+  const blocked = rep && pl.errs.length > 0;
+  const tag = { add: ["Thêm mới", "ok"], upd: ["Cập nhật", "pr"], del: ["Xóa", "er"] };
+  modal(`<div class="imp"><h2>Xem trước khi nhập</h2><p class="mut" style="margin:0">${esc(file)} · ${num(recs.length)} dòng</p>
+  <div class="kpis"><span class="st ok">Thêm mới: ${pl.add}</span><span class="st pr">Cập nhật: ${pl.upd}</span><span class="st wa">Xóa: ${pl.del}</span><span class="st">Không đổi: ${pl.same}</span><span class="st er">Lỗi: ${pl.errs.length}</span></div>
+  ${pl.errs.length ? `<div class="note bad"><b>${pl.errs.length} dòng lỗi${blocked ? " — hãy sửa tệp rồi nhập lại" : " (sẽ được bỏ qua)"}:</b><br>${pl.errs.slice(0, 12).map(esc).join("<br>")}${pl.errs.length > 12 ? `<br>… và ${pl.errs.length - 12} lỗi khác` : ""}</div>` : ""}
+  ${pl.prev.length ? tbl(["Thao tác", "Dịch vụ", "Nền tảng", ">Giá / 1.000"], pl.prev.map(([t, n, p, v]) => `<tr><td><span class="st ${tag[t][1]}">${tag[t][0]}</span></td><td>${esc(n)}</td><td>${PF[p] || esc(p)}</td><td class="r">${vnd(v)}</td></tr>`)) + (pl.ops.length > pl.prev.length ? `<p class="mut" style="margin:8px 0 0">… và ${pl.ops.length - pl.prev.length} thao tác khác</p>` : "") : empty("Không có thay đổi nào để áp dụng")}
+  <label class="ck"><input type="checkbox" data-act="imprep" ${rep ? "checked" : ""}>Đồng bộ hoàn toàn: xóa mọi dịch vụ hiện có mà không có trong tệp</label>
+  <div class="row2" style="margin-top:20px"><button class="btn line" data-act="imp">Chọn tệp khác</button><button class="btn" data-act="impgo" ${pl.ops.length && !blocked ? "" : "disabled"}>Áp dụng ${pl.ops.length} thay đổi</button></div>
+  <button class="btn line" style="margin-top:10px" data-act="closem">Hủy</button></div>`);
+}
+async function readImport(f) {
+  if (f.size > 5e6) throw new Error("Tệp quá lớn (tối đa 5MB)");
+  const ext = f.name.split(".").pop().toLowerCase();
+  let objs;
+  if (ext === "json") {
+    let j = JSON.parse(await f.text());
+    if (!Array.isArray(j)) j = j?.services || j?.data;
+    if (!Array.isArray(j)) throw new Error("JSON phải là một mảng các dịch vụ");
+    objs = j;
+  } else if (ext === "xlsx" || ext === "xls") {
+    const X = await xlsx(), wb = X.read(await f.arrayBuffer());
+    objs = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "", raw: true });
+  } else {
+    const rows = parseCSV(await f.text()), head = rows.shift() || [];
+    objs = rows.map((r) => Object.fromEntries(head.map((h, i) => [h, r[i] ?? ""])));
+  }
+  if (objs.length > 2000) toast("Chỉ đọc 2.000 dòng đầu tiên của tệp");
+  const recs = objs.slice(0, 2000).map((o, i) => ({ line: i + 2, v: mapKeys(o) })).filter((r) => Object.keys(r.v).length);
+  if (!recs.length) throw new Error("Không nhận diện được cột nào. Hãy dùng tệp mẫu hoặc tệp xuất ra từ hệ thống.");
+  S.imp = { file: f.name, recs, rep: false };
+  showImport();
+}
+
+/* ---------- Actions mới (gộp vào A) ---------- */
+Object.assign(A, {
+  // Tick chọn
+  sel: (el, id) => { el.checked ? S.sel.add(id) : S.sel.delete(id); refreshList(); },
+  selall: (el) => { svcFiltered().forEach((s) => (el.checked ? S.sel.add(s.id) : S.sel.delete(s.id))); refreshList(); },
+  selclr: () => { S.sel.clear(); refreshList(); },
+
+  // Sửa / xóa hàng loạt các dịch vụ đã chọn
+  bk: (el, v) => run(el, async () => {
+    const L = S.services.filter((s) => S.sel.has(s.id));
+    if (!L.length) return;
+    if (v === "del") {
+      if (!confirm(`Xóa vĩnh viễn ${L.length} dịch vụ đã chọn?\nĐơn cũ vẫn giữ nguyên. Không thể hoàn tác.`)) return;
+      await commitOps(L.map((s) => ({ t: "del", id: s.id })));
+      S.sel.clear();
+      toast(`Đã xóa ${L.length} dịch vụ`);
+    } else if (v === "on" || v === "off") {
+      await commitOps(L.map((s) => ({ t: "upd", id: s.id, d: { active: v === "on", updatedAt: serverTimestamp() } })));
+      toast(`${v === "on" ? "Đã bật bán" : "Đã tạm ẩn"} ${L.length} dịch vụ`);
+    } else if (v === "price") {
+      const raw = prompt(`Điều chỉnh giá cho ${L.length} dịch vụ đã chọn theo %.\nVí dụ: 10 = tăng 10%, -5 = giảm 5%`);
+      if (raw === null) return;
+      const pct = Number(raw.replace(",", ".").replace(/[^\d.+-]/g, ""));
+      if (!Number.isFinite(pct) || pct === 0 || pct <= -100 || pct > 1000) return toast("Phần trăm không hợp lệ", 1);
+      await commitOps(L.map((s) => ({ t: "upd", id: s.id, d: { pricePer1000: Math.max(1, Math.round((Number(s.pricePer1000) || 0) * (1 + pct / 100))), updatedAt: serverTimestamp() } })));
+      toast(`Đã chỉnh giá ${pct > 0 ? "+" : ""}${pct}% cho ${L.length} dịch vụ`);
+    }
+    refreshList();
+  }),
+
+  // Xuất dữ liệu: v = "<phạm vi>:<định dạng>"
+  exp: (el, v) => run(el, async () => {
+    el.closest("details")?.removeAttribute("open");
+    const [k, fmt] = v.split(":");
+    let name, head, rows;
+    if (k === "tpl") { name = "mau-nhap-dich-vu"; head = SVC_HEAD; rows = SVC_TPL; }
+    else if (k.startsWith("svc")) {
+      const list = k === "svcsel" ? S.services.filter((s) => S.sel.has(s.id)) : k === "svcview" ? svcFiltered() : S.services;
+      if (!list.length) return toast("Không có dữ liệu để xuất", 1);
+      name = EXP.services[0]; head = SVC_HEAD; rows = list.map(svcRow);
+    } else {
+      const e = EXP[k], list = e?.[1]();
+      if (!list?.length) return toast("Không có dữ liệu để xuất", 1);
+      name = e[0]; head = e[2].map((c) => c[0]); rows = list.map((x) => e[2].map((c) => c[1](x)));
+    }
+    await saveTable(fmt, name, head, rows);
+    toast(k === "tpl" ? "Đã tải tệp mẫu" : `Đã xuất ${rows.length} dòng`);
+  }),
+
+  // Nhập dữ liệu
+  imp: () => {
+    S.imp = null;
+    modal(`<div class="imp"><h2>Nhập dịch vụ hàng loạt</h2>
+    <p class="mut" style="margin:0 0 4px">Hỗ trợ <b>CSV, Excel (.xlsx), JSON</b>. Bạn sẽ được xem trước trước khi ghi vào hệ thống.</p>
+    <div class="note"><b>Quy tắc:</b><br>• Dòng có <b>ID</b> trùng dịch vụ cũ → cập nhật; ID mới → thêm mới.<br>• Không có ID → khớp theo <b>Nền tảng + Tên dịch vụ</b> (khớp thì sửa, chưa có thì thêm mới).<br>• Ô để trống khi sửa = giữ nguyên giá trị cũ.<br>• Cột <b>Xóa</b> ghi <b>x</b> (hoặc Có) → xóa dịch vụ đó.<br>• Nền tảng: ${Object.keys(PF).join(" / ")}. Đang bán, Phổ biến: Có / Không.</div>
+    <label class="l">Chọn tệp</label><input type="file" id="imp_file" accept=".csv,.json,.xlsx,.xls,.txt">
+    <div class="row2" style="margin-top:12px"><button class="btn line" data-act="exp" data-v="tpl:xlsx">Tải mẫu Excel</button><button class="btn line" data-act="exp" data-v="tpl:csv">Tải mẫu CSV</button></div>
+    <button class="btn line" style="margin-top:16px" data-act="closem">Đóng</button></div>`);
+  },
+  imprep: (el) => { if (!S.imp) return; S.imp.rep = el.checked; showImport(); },
+  impgo: (el) => run(el, async () => {
+    const pl = S.imp?.plan;
+    if (!pl?.ops.length) return;
+    if (!confirm(`Áp dụng ${pl.ops.length} thay đổi (thêm ${pl.add}, cập nhật ${pl.upd}, xóa ${pl.del})?${pl.del ? "\nDịch vụ bị xóa không thể khôi phục." : ""}`)) return;
+    await commitOps(pl.ops);
+    S.imp = null; S.sel.clear(); modal("");
+    toast(`Đã nhập xong: +${pl.add} mới · ${pl.upd} cập nhật · ${pl.del} xóa`);
+  }),
+});
+
+document.addEventListener("change", (e) => {
+  if (e.target.id !== "imp_file") return;
+  const f = e.target.files?.[0];
+  if (f) run(null, () => readImport(f));
+});
+// Đổi trang thì bỏ chọn / bỏ dữ liệu nhập đang dở
+window.addEventListener("hashchange", () => {
+  S.sel.clear(); S.imp = null;
+  if (route() === "services") refreshList();
 });
