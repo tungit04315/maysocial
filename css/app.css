@@ -1066,3 +1066,8 @@ ul.nt {
         align-items: flex-start
     }
 }
+
+/* ===== QR nạp tiền — dán vào CUỐI css/app.css ===== */
+.qr{text-align:center;margin:14px 0 6px}
+.qr img{width:min(280px,100%);height:auto;border:1px solid var(--line);border-radius:16px;background:#fff;padding:8px}
+.qr p{font-size:14px;margin-top:8px}
