@@ -359,6 +359,7 @@ function pgSet() {
     title: "Cài đặt", sub: "Thông tin tài khoản ngân hàng nhận tiền (hiển thị cho người dùng khi nạp tiền)",
     body: `<div class="card fm"><h2>Tài khoản nhận tiền</h2>
     <label class="l">Ngân hàng</label><input id="s_bank" value="${esc(p.bankName)}" placeholder="VD: Vietcombank">
+    <label class="l">Mã ngân hàng cho QR (VD: VCB, MB, TCB, ACB hoặc mã BIN)</label><input id="s_code" value="${esc(p.bankCode)}" placeholder="VCB">
     <label class="l">Số tài khoản</label><input id="s_no" value="${esc(p.accountNo)}">
     <label class="l">Chủ tài khoản</label><input id="s_name" value="${esc(p.accountName)}">
     <button class="btn" style="margin-top:20px" data-act="savepay">Lưu cài đặt</button></div>`,
@@ -564,7 +565,7 @@ const A = {
 
   /* --- Cài đặt --- */
   savepay: (el) => run(el, async () => {
-    const d = { bankName: val("s_bank").slice(0, 100), accountNo: val("s_no").slice(0, 40), accountName: val("s_name").slice(0, 100) };
+    const d = { bankName: val("s_bank").slice(0, 100), bankCode: val("s_code").slice(0, 20), accountNo: val("s_no").slice(0, 40), accountName: val("s_name").slice(0, 100) };
     if (!d.bankName || !d.accountNo || !d.accountName) return toast("Vui lòng nhập đủ 3 trường", 1);
     await setDoc(doc(db, "settings", "payment"), d);
     toast("Đã lưu cài đặt");
