@@ -457,12 +457,17 @@ const A = {
     <label class="l">Nền tảng</label><select id="f_pf">${Object.entries(PF).map(([k, t]) => `<option value="${k}" ${s.platform === k ? "selected" : ""}>${t}</option>`).join("")}</select>
     <label class="l">Tên dịch vụ</label><input id="f_name" value="${esc(s.name)}" maxlength="100">
     <label class="l">Mô tả ngắn</label><input id="f_desc" value="${esc(s.desc)}" maxlength="300">
+    <label class="l">Tốc độ (hiển thị ở bảng so sánh kênh)</label><input id="f_speed" value="${esc(s.speed || "")}" maxlength="30" placeholder="Tiêu chuẩn / Nhanh">
     <label class="l">Giá cho mỗi 1.000 (VNĐ)</label><input id="f_price" inputmode="numeric" value="${s.pricePer1000 || ""}">
     <div class="cols2"><div><label class="l">Số lượng tối thiểu</label><input id="f_min" inputmode="numeric" value="${s.min || ""}"></div><div><label class="l">Số lượng tối đa</label><input id="f_max" inputmode="numeric" value="${s.max || ""}"></div></div>
     <label class="l">Điểm nổi bật (mỗi dòng: Tiêu đề | Mô tả)</label><textarea id="f_feat">${esc((s.features || []).map((f) => `${f.t} | ${f.d || ""}`).join("\n"))}</textarea>
+    <label class="l">Kênh bán (mỗi dòng: Tên kênh | Giá mỗi 1.000 (VNĐ) | Tốc độ)</label><textarea id="f_ch" placeholder="Kênh 61 | 535 | Tiêu chuẩn&#10;Kênh 62 | 1284 | Nhanh">${esc((s.channels || []).map((c) => `${c.name} | ${c.price} | ${c.speed || ""}`).join("\n"))}</textarea>
+    <p class="mut" style="margin:4px 0 0;font-size:12.5px">Để trống = chỉ có 1 kênh mặc định theo giá ở trên. Nếu có kênh, giá cơ bản sẽ tự lấy theo kênh rẻ nhất.</p>
     <label class="l">Lưu ý trước khi đặt (mỗi dòng một ý)</label><textarea id="f_notes">${esc((s.notes || []).join("\n"))}</textarea>
+    <label class="l">Thứ tự hiển thị ở menu (số nhỏ lên trước)</label><input id="f_order" inputmode="numeric" value="${s.order ?? ""}" placeholder="VD: 1">
     <label class="ck"><input type="checkbox" id="f_active" ${s.active ? "checked" : ""}>Đang bán (hiển thị cho người dùng)</label>
     <label class="ck"><input type="checkbox" id="f_pop" ${s.popular ? "checked" : ""}>Đánh dấu “Phổ biến”</label>
+    <label class="ck"><input type="checkbox" id="f_mins" ${s.needMinutes ? "checked" : ""}>Yêu cầu nhập “Số phút” (dịch vụ livestream)</label>
     <div class="row2" style="margin-top:22px"><button class="btn line" data-act="closem">Hủy</button><button class="btn" data-act="savesvc">Lưu dịch vụ</button></div>`);
   },
   savesvc: (el) => run(el, async () => {
@@ -471,7 +476,14 @@ const A = {
       const [t, ...d] = l.split("|"); return { t: t.trim().slice(0, 120), d: d.join("|").trim().slice(0, 300) };
     }).filter((f) => f.t);
     const notes = val("f_notes").split("\n").map((l) => l.trim().slice(0, 300)).filter(Boolean).slice(0, 10);
-    const d = { platform: val("f_pf"), name: val("f_name"), desc: val("f_desc"), pricePer1000: n("f_price"), min: n("f_min"), max: n("f_max"), active: chk("f_active"), popular: chk("f_pop"), features, notes, updatedAt: serverTimestamp() };
+    const channels = [];
+    for (const l of val("f_ch").split("\n").map((x) => x.trim()).filter(Boolean)) {
+      const [nm, pr, sp] = l.split("|").map((x) => x.trim()), price = Number((pr || "").replace(/\D/g, "")) || 0;
+      if (!nm || nm.length > 60 || price <= 0) return toast(`Dòng kênh không hợp lệ: “${l.slice(0, 40)}” (cần: Tên | Giá > 0 | Tốc độ)`, 1);
+      channels.push({ name: nm, price, speed: (sp || "Tiêu chuẩn").slice(0, 30) });
+    }
+    if (channels.length > 12) return toast("Tối đa 12 kênh cho mỗi dịch vụ", 1);
+    const d = { platform: val("f_pf"), name: val("f_name"), desc: val("f_desc"), pricePer1000: channels.length ? Math.min(...channels.map((c) => c.price)) : n("f_price"), min: n("f_min"), max: n("f_max"), active: chk("f_active"), popular: chk("f_pop"), needMinutes: chk("f_mins"), speed: val("f_speed").slice(0, 30), order: val("f_order") === "" ? null : n("f_order"), channels, features, notes, updatedAt: serverTimestamp() };
     if (!PF[d.platform]) return toast("Nền tảng không hợp lệ", 1);
     if (d.name.length < 2 || d.name.length > 100) return toast("Tên dịch vụ 2–100 ký tự", 1);
     if (d.desc.length > 300) return toast("Mô tả tối đa 300 ký tự", 1);
@@ -500,7 +512,7 @@ const A = {
     S.cur = id;
     const done = o.status === "canceled";
     modal(`<h2>Đơn #${esc(o.code)}</h2>
-    ${[["Người dùng", who(o.uid)], ["Dịch vụ", esc(o.serviceName)], ["Nền tảng", PF[o.platform] || ""], ["Liên kết", `<a href="${esc(o.link)}" target="_blank" rel="noopener noreferrer">${esc(o.link)}</a>`], ["Số lượng", num(o.quantity)], ["Tổng tiền", vnd(o.total)], ["Ngày tạo", fdt(o.createdAt)], ["Trạng thái", badge(ST, o.status)]].map(([k, v]) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`).join("")}
+    ${[["Người dùng", who(o.uid)], ["Dịch vụ", esc(o.serviceName)], ["Nền tảng", PF[o.platform] || ""], ["Liên kết", `<a href="${esc(o.link)}" target="_blank" rel="noopener noreferrer">${esc(o.link)}</a>`], ["Số lượng", num(o.quantity)], ...(o.minutes ? [["Số phút", num(o.minutes)]] : []), ["Tổng tiền", vnd(o.total)], ["Ngày tạo", fdt(o.createdAt)], ["Trạng thái", badge(ST, o.status)]].map(([k, v]) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`).join("")}
     ${done ? `<div class="note">Đơn đã hủy và hoàn tiền, không thể thay đổi.</div>` : `<label class="l">Cập nhật trạng thái</label><select id="o_st"><option value="pending">Chờ xử lý</option><option value="processing">Đang xử lý</option><option value="completed">Hoàn tất</option><option value="canceled">Hủy đơn &amp; hoàn tiền cho người dùng</option></select>`}
     <div class="row2" style="margin-top:20px"><button class="btn line" data-act="closem">Đóng</button>${done ? "" : `<button class="btn" data-act="saveord">Cập nhật</button>`}</div>`);
     if (!done) $("#o_st").value = o.status || "pending";
@@ -821,6 +833,7 @@ function svcList() {
     ? `<div class="bulk"><b>Đã chọn ${selN}</b>
     <button class="btn sm line" data-act="bk" data-v="on">Bật bán</button>
     <button class="btn sm line" data-act="bk" data-v="off">Tạm ẩn</button>
+    <button class="btn sm" data-act="bk" data-v="edit">Sửa hàng loạt</button>
     <button class="btn sm line" data-act="bk" data-v="price">Chỉnh giá %</button>
     <button class="btn sm line" data-act="exp" data-v="svcsel:csv">Xuất CSV</button>
     <button class="btn sm er" data-act="bk" data-v="del">Xóa đã chọn</button><span class="sp"></span>
@@ -832,7 +845,7 @@ function svcList() {
   return bulk + tbl([`<input type="checkbox" class="ckc" data-act="selall" ${all ? "checked" : ""} title="Chọn tất cả ${f.length} dịch vụ đang hiển thị">`, "Dịch vụ", "Nền tảng", ">Giá / 1.000", ">Min – Max", "Trạng thái", ""], rows.map((s) =>
     `<tr><td><input type="checkbox" class="ckc" data-act="sel" data-v="${s.id}" ${S.sel.has(s.id) ? "checked" : ""}></td>
     <td><b>${esc(s.name)}</b>${s.popular ? ' <span class="st pr">Phổ biến</span>' : ""}<span class="sub">${esc(s.desc)}</span></td><td>${PF[s.platform] || esc(s.platform)}</td>
-    <td class="r">${vnd(s.pricePer1000)}</td><td class="r">${num(s.min)} – ${num(s.max)}</td><td>${s.active ? '<span class="st ok">Đang bán</span>' : '<span class="st">Tạm ẩn</span>'}</td>
+    <td class="r">${vnd(s.pricePer1000)}${s.channels?.length ? `<span class="sub">${s.channels.length} kênh</span>` : ""}</td><td class="r">${num(s.min)} – ${num(s.max)}</td><td>${s.active ? '<span class="st ok">Đang bán</span>' : '<span class="st">Tạm ẩn</span>'}</td>
     <td><div class="acts"><button class="btn sm line" data-act="tgsvc" data-v="${s.id}">${s.active ? "Ẩn" : "Bật"}</button><button class="btn sm" data-act="svc" data-v="${s.id}">Sửa</button><button class="btn sm er" data-act="delsvc" data-v="${s.id}">Xóa</button></div></td></tr>`)) + pager;
 }
 
@@ -905,9 +918,26 @@ Object.assign(A, {
   selclr: () => { S.sel.clear(); refreshList(); },
 
   // Sửa / xóa hàng loạt các dịch vụ đã chọn
+  bkapply: (el) => run(el, async () => {
+    const L = S.services.filter((s) => S.sel.has(s.id)), d = {};
+    const f = (id, k) => { const x = val(id); if (x !== "") d[k] = x === "1"; };
+    f("b_active", "active"); f("b_pop", "popular"); f("b_mins", "needMinutes");
+    if (val("b_speed")) d.speed = val("b_speed").slice(0, 30);
+    if (!L.length) return;
+    if (!Object.keys(d).length) return toast("Chưa chọn thay đổi nào", 1);
+    await commitOps(L.map((s) => ({ t: "upd", id: s.id, d: { ...d, updatedAt: serverTimestamp() } })));
+    modal(""); toast(`Đã cập nhật ${L.length} dịch vụ`); refreshList();
+  }),
   bk: (el, v) => run(el, async () => {
     const L = S.services.filter((s) => S.sel.has(s.id));
     if (!L.length) return;
+    if (v === "edit") {
+      const sel = (id, t) => `<label class="l">${t}</label><select id="${id}"><option value="">— Không đổi —</option><option value="1">Bật / Có</option><option value="0">Tắt / Không</option></select>`;
+      return modal(`<h2>Sửa hàng loạt ${L.length} dịch vụ</h2><p class="mut" style="margin:0 0 4px">Chỉ những mục bạn chọn khác “Không đổi” mới được áp dụng.</p>
+      ${sel("b_active", "Đang bán (hiển thị cho người dùng)")}${sel("b_pop", "Đánh dấu “Phổ biến”")}${sel("b_mins", "Yêu cầu nhập “Số phút” (dịch vụ livestream — giá × số lượng × số phút)")}
+      <label class="l">Tốc độ (để trống = không đổi)</label><input id="b_speed" maxlength="30" placeholder="Tiêu chuẩn / Nhanh">
+      <div class="row2" style="margin-top:22px"><button class="btn line" data-act="closem">Hủy</button><button class="btn" data-act="bkapply">Áp dụng cho ${L.length} dịch vụ</button></div>`);
+    }
     if (v === "del") {
       if (!confirm(`Xóa vĩnh viễn ${L.length} dịch vụ đã chọn?\nĐơn cũ vẫn giữ nguyên. Không thể hoàn tác.`)) return;
       await commitOps(L.map((s) => ({ t: "del", id: s.id })));
@@ -921,7 +951,7 @@ Object.assign(A, {
       if (raw === null) return;
       const pct = Number(raw.replace(",", ".").replace(/[^\d.+-]/g, ""));
       if (!Number.isFinite(pct) || pct === 0 || pct <= -100 || pct > 1000) return toast("Phần trăm không hợp lệ", 1);
-      await commitOps(L.map((s) => ({ t: "upd", id: s.id, d: { pricePer1000: Math.max(1, Math.round((Number(s.pricePer1000) || 0) * (1 + pct / 100))), updatedAt: serverTimestamp() } })));
+      await commitOps(L.map((s) => ({ t: "upd", id: s.id, d: { pricePer1000: Math.max(1, Math.round((Number(s.pricePer1000) || 0) * (1 + pct / 100))), ...(s.channels?.length ? { channels: s.channels.map((c) => ({ ...c, price: Math.max(1, Math.round((Number(c.price) || 0) * (1 + pct / 100))) })) } : {}), updatedAt: serverTimestamp() } })));
       toast(`Đã chỉnh giá ${pct > 0 ? "+" : ""}${pct}% cho ${L.length} dịch vụ`);
     }
     refreshList();

@@ -88,6 +88,12 @@ const P = {
   shield: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
   heart:
     "M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z",
+  menu: "M4 6h16M4 12h16M4 18h16",
+  chevup: "M6 15l6-6 6 6",
+  flash: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM13 7l-4 6h3l-1 4 4-6h-3z",
+  mailopen: "M3 9.5l9-6 9 6V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3 9.5l9 6 9-6",
+  mega: "M3 10v4a1 1 0 0 0 1 1h2.5L12 19V5L6.5 9H4a1 1 0 0 0-1 1zM15.5 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11",
+  sort: "M8 4v16M4 8l4-4 4 4M16 20V4M12 16l4 4 4-4",
 };
 const I = (n, s = 22) =>
   `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${P[n]}"/></svg>`;
@@ -100,10 +106,22 @@ const PF = {
   youtube: ["YouTube", "#e62117", "▶"],
   google: ["Google", "#4285f4", "G"],
 };
-const pfi = (k, s = 44) => {
-  const p = PF[k] || ["", "#888", "?"];
-  return `<span class="pf" style="width:${s}px;height:${s}px;background:${p[1]};font-size:${s * 0.48}px">${p[2]}</span>`;
+const TT_D =
+  "M12.5.02c1.3-.02 2.6-.01 3.9-.02.1 1.5.6 3.1 1.8 4.2 1.1 1.1 2.7 1.6 4.2 1.8v4c-1.4 0-2.9-.3-4.2-1-.6-.3-1.1-.6-1.6-.9v8.8c-.1 1.4-.5 2.8-1.4 3.9-1.3 1.9-3.6 3.2-5.9 3.2-1.4.1-2.9-.3-4.1-1-2-1.2-3.4-3.4-3.6-5.7v-1.5c.2-1.9 1.1-3.7 2.6-5 1.7-1.4 4-2.1 6.2-1.7v4.4c-1-.3-2.2-.2-3 .4-.6.4-1.1 1-1.4 1.8-.2.5-.1 1.1-.1 1.6.2 1.6 1.8 3 3.5 2.9 1.1 0 2.2-.7 2.8-1.6.2-.3.4-.7.4-1.1.1-1.8.1-3.6.1-5.4V.02z";
+const FB_D =
+  "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z";
+// Logo nền tảng dạng SVG (có thể thay bằng file logo chính thức trong assets/ khi có)
+const PFSVG = {
+  facebook: [`0 0 24 24`, `<circle cx="12" cy="12" r="11.5" fill="#fff"/><path fill="#1877f2" d="${FB_D}"/>`],
+  tiktok: [`-2 -2 28 28`, `<path transform="translate(-.6 .6)" fill="#25f4ee" d="${TT_D}"/><path transform="translate(.6 -.6)" fill="#fe2c55" d="${TT_D}"/><path fill="#000" d="${TT_D}"/>`],
+  youtube: [`0 0 24 24`, `<rect x="0" y="4" width="24" height="16" rx="5" fill="#f00"/><path d="M9.8 8.8l6 3.2-6 3.2z" fill="#fff"/>`],
+  google: [`0 0 48 48`, `<path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17z"/><path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/>`],
 };
+const pfi = (k, s = 44) => {
+  const v = PFSVG[k];
+  if (!v) return `<span class="pf" style="width:${s}px;height:${s}px;border-radius:50%;background:#888;color:#fff;display:inline-grid;place-items:center;font-size:${s * 0.48}px">?</span>`;
+  return `<svg class="pf" width="${s}" height="${s}" viewBox="${v[0]}" aria-hidden="true">${v[1]}</svg>`;
+}
 const ST = {
   completed: ["Hoàn tất", "ok"],
   processing: ["Đang xử lý", "pr"],
@@ -188,6 +206,13 @@ const S = {
   cat: null,
   open: null,
   req: null,
+  side: false, // desktop: thu gọn sidebar · mobile: mở ngăn kéo
+  grp: {}, // trạng thái đóng/mở nhóm nền tảng ở sidebar
+  sub: {}, // đóng/mở hàng "BUFF …" bên trong nhóm
+  ch: null, // kênh đang chọn ở trang dịch vụ
+  sort: "asc", // cách sắp xếp danh sách kênh
+  info: false,
+  fresh: false,
   unsub: [],
 };
 let comp = 0;
@@ -308,6 +333,10 @@ window.addEventListener("hashchange", () => {
   S.cat = null;
   S.open = null;
   S.req = null;
+  S.ch = null;
+  S.info = false;
+  S.fresh = true; // trang mới: không mang giá trị ô nhập từ trang trước
+  if (matchMedia("(max-width:900px)").matches) S.side = false;
   modal("");
   render();
   scrollTo(0, 0);
@@ -316,13 +345,19 @@ window.addEventListener("hashchange", () => {
 function render() {
   if (S.user === undefined || comp) return;
   const root = $("#app"),
-    keep = [...root.querySelectorAll("input[id],textarea[id],select[id]")].map(
-      (e) => [e.id, e.value, e.checked],
-    );
+    keep = S.fresh
+      ? []
+      : [...root.querySelectorAll("input[id],textarea[id],select[id]")].map(
+        (e) => [e.id, e.value, e.checked],
+      ),
+    sc = root.querySelector(".sb-scroll")?.scrollTop || 0;
+  S.fresh = false;
   const a = document.activeElement,
     fid = a?.id,
     ss = a?.selectionStart;
   root.innerHTML = S.user ? main() : authView();
+  const sb = root.querySelector(".sb-scroll");
+  if (sb) sb.scrollTop = sc;
   keep.forEach(([i, v, c]) => {
     const e = document.getElementById(i);
     if (!e) return;
@@ -338,6 +373,7 @@ function render() {
       } catch { }
     }
   }
+  calcTotal();
 }
 
 /* ---------- Auth (GIAO DIỆN MỚI) ---------- */
@@ -471,6 +507,52 @@ const doRegister = (el) =>
   });
 
 /* ---------- Shell ---------- */
+const SORTS = {
+  asc: ["Giá thấp đến cao", (a, b) => a.price - b.price],
+  desc: ["Giá cao đến thấp", (a, b) => b.price - a.price],
+  fast: ["Tốc độ nhanh nhất", (a, b) => spd(a) - spd(b) || a.price - b.price],
+};
+const SPEED_RANK = { "rất nhanh": 0, nhanh: 1, "tiêu chuẩn": 2, chậm: 3 };
+const spd = (c) => SPEED_RANK[String(c.speed).toLowerCase()] ?? 2;
+const hasCh = (s) => Array.isArray(s?.channels) && s.channels.length > 0;
+// Tách "Tên dịch vụ — Kênh 50" => ["Tên dịch vụ", "Kênh 50"]
+const splitName = (s) => {
+  const n = String(s?.name || "").trim(),
+    m = n.match(/^(.*\S)\s+[—–-]\s+(\S[^—–]*)$/);
+  return m ? [m[1].trim(), m[2].trim()] : [n, ""];
+};
+const gkey = (s) => s.platform + "|" + splitName(s)[0].toLowerCase();
+const byOrder = (a, b) =>
+  (a.order ?? 1e9) - (b.order ?? 1e9) ||
+  toMs(a.createdAt) - toMs(b.createdAt) ||
+  String(a.name).localeCompare(String(b.name), "vi", { numeric: true });
+const groupOf = (s) => S.services.filter((x) => gkey(x) === gkey(s)).sort(byOrder);
+// Danh sách "dịch vụ cha" của 1 nền tảng: mỗi nhóm lấy dịch vụ đầu tiên làm đại diện
+const parentsOf = (pf) => {
+  const seen = new Set();
+  return S.services
+    .filter((x) => x.platform === pf)
+    .sort(byOrder)
+    .filter((x) => !seen.has(gkey(x)) && seen.add(gkey(x)));
+};
+// Kênh của 1 dịch vụ cha: mỗi dịch vụ con = 1 kênh (hoặc nhiều kênh nếu có mảng channels)
+const chansOf = (s) =>
+  groupOf(s)
+    .flatMap((m) =>
+      hasCh(m)
+        ? m.channels.map((c) => ({ name: c.name, price: c.price, speed: c.speed, m }))
+        : [{ name: splitName(m)[1] || "Mặc định", price: m.pricePer1000, speed: m.speed, m }],
+    )
+    .map((c, i) => ({ i, name: String(c.name || "Kênh " + (i + 1)), price: Number(c.price) || 0, speed: String(c.speed || "Tiêu chuẩn"), m: c.m }))
+    .filter((c) => c.price > 0);
+const selCh = (s) => {
+  const cs = s ? chansOf(s) : [];
+  return cs.find((c) => c.i === S.ch) || cs.reduce((a, b) => (!a || b.price < a.price ? b : a), null);
+};
+// Dịch vụ livestream (needMinutes): tiền = giá/đơn vị × số lượng × số phút
+const amount = (c, q, mi) => Math.ceil((q * c.price * (c.m.needMinutes ? mi : 1)) / 1000);
+const unitP = (p) => (p / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+
 function main() {
   const [r, id] = route(),
     pages = {
@@ -482,20 +564,40 @@ function main() {
       topup: topup,
       support: supp,
     },
-    p = (pages[r] || dash)();
-  const cur = r === "service" ? "services" : r || "dashboard";
-  const items = [
-    ["dashboard", "home", "Tổng quan"],
-    ["services", "box", "Dịch vụ"],
-    ["orders", "list", "Đơn hàng"],
-    ["topup", "wallet", "Nạp tiền"],
-    ["support", "help", "Hỗ trợ"],
-  ];
+    p = (pages[r] || dash)(),
+    cur = pages[r] ? r || "dashboard" : "dashboard",
+    svc = r === "service" ? S.services.find((x) => x.id === id) : null;
   const name =
     S.user.displayName || S.profile?.displayName || S.user.email || "";
   const busy = S.orders.some((o) => o.status !== "completed");
-  return `<div class="layout"><aside class="side"><div class="brand">${logo()}Mây Social</div><nav class="nav">${items.map(([h, i, t]) => `<a href="#/${h}" class="${cur === h ? "on" : ""}">${I(i)}${t}</a>`).join("")}</nav><div class="tag">Kết nối thương hiệu<br>với những người<br>quan tâm thật sự</div></aside>
-  <main><header class="top"><div>${p.pre || ""}${p.head}</div><div class="right"><div class="who"><a class="bell" href="#/orders" aria-label="Đơn hàng đang xử lý">${I("bell", 26)}${busy ? "<i></i>" : ""}</a><button class="me" data-act="menu"><span class="av">${esc((name.trim()[0] || "?").toUpperCase())}</span>${I("chev", 18)}</button>${S.menu ? `<div class="menu"><p>${esc(S.user.email || name)}</p><button data-act="logout">Đăng xuất</button></div>` : ""}</div>${p.act || ""}</div></header>${p.body}</main></div>`;
+  const nl = (h, i, t, x = "") =>
+    `<a href="#/${h}" class="nl ${cur === h ? "on" : ""}">${I(i, 26)}<span>${t}</span>${x}</a>`;
+  const groups = Object.keys(PF)
+    .map((k) => {
+      const list = parentsOf(k),
+        open = k in S.grp ? S.grp[k] : svc?.platform === k,
+        sub = S.sub[k] !== false;
+      return `<div class="gp ${open ? "open" : ""}"><button class="gh" data-act="grp" data-v="${k}" aria-expanded="${open}">${pfi(k, 30)}<span>${PF[k][0]}</span>${I("chev", 18)}</button>${open
+        ? `<div class="gsub"><button class="gt" data-act="sub" data-v="${k}" aria-expanded="${sub}">${I("mailopen", 26)}<span>BUFF ${PF[k][0].toUpperCase()}</span>${I("chev", 18)}</button>${!sub ? "" : list.length
+          ? `<ul>${list.map((x) => `<li><a href="#/service/${x.id}" title="${esc(splitName(x)[0])}" class="${svc && gkey(svc) === gkey(x) ? "on" : ""}"><i></i><span>${esc(splitName(x)[0])}</span></a></li>`).join("")}</ul>`
+          : `<p class="gempty">Chưa có dịch vụ</p>`
+        }</div>`
+        : ""
+        }</div>`;
+    })
+    .join("");
+  const av = S.user.photoURL
+    ? `<img class="av" src="${esc(S.user.photoURL)}" alt="" referrerpolicy="no-referrer">`
+    : `<span class="av">${esc((name.trim()[0] || "?").toUpperCase())}</span>`;
+  return `<div class="layout ${S.side ? "tg" : ""}"><div class="scrim" data-act="side"></div>
+  <aside class="side"><div class="sb-brand">${cloudLogo()}<span>Mây Social</span></div>
+  <div class="sb-scroll"><nav>${nl("dashboard", "home", "Tổng quan")}
+  <p class="sec">Dịch vụ</p>${nl("services", "flash", "Mua nhanh", '<em class="hot">HOT</em>')}${groups}
+  <p class="sec">Tài khoản</p>${nl("orders", "list", "Đơn hàng")}${nl("topup", "wallet", "Nạp tiền")}${nl("support", "help", "Hỗ trợ")}</nav></div>
+  <div class="promo"><svg class="pcl" viewBox="0 0 252 130" preserveAspectRatio="xMaxYMax slice" aria-hidden="true"><g fill="#ece8fd"><circle cx="190" cy="120" r="70"/><circle cx="130" cy="130" r="50"/><circle cx="235" cy="70" r="40"/></g><g fill="#c9c1fa"><rect x="150" y="62" width="9" height="30" rx="3" opacity=".7"/><rect x="164" y="46" width="9" height="46" rx="3" opacity=".85"/><rect x="178" y="30" width="9" height="62" rx="3"/></g><g fill="#ffc9c2"><rect x="132" y="76" width="9" height="16" rx="3"/></g></svg><p>Kết nối thương hiệu<br>với những người<br>quan tâm thật sự</p><i class="pl"></i></div></aside>
+  <div class="col"><header class="bar"><button class="ham" data-act="side" aria-label="Ẩn/hiện menu">${I("menu", 28)}</button>
+  <div class="who"><a class="bell" href="#/orders" aria-label="Đơn hàng đang xử lý">${I("bell", 26)}${busy ? "<i></i>" : ""}</a><button class="me" data-act="menu">${av}${I("chev", 18)}</button>${S.menu ? `<div class="menu"><p>${esc(S.user.email || name)}</p><button data-act="logout">Đăng xuất</button></div>` : ""}</div></header>
+  <main><div class="top"><div>${p.pre || ""}${p.head}</div>${p.act ? `<div class="act">${p.act}</div>` : ""}</div>${p.body}</main></div></div>`;
 }
 const ph = (t, s) => `<h1 class="pt">${t}</h1><p class="sub">${s}</p>`;
 const stat = (ic, c, l, v) =>
@@ -586,27 +688,49 @@ function svcs() {
     body: `<div class="input">${I("search", 26)}<input id="q" data-in="q" placeholder="Tìm dịch vụ hoặc nền tảng"></div>${chipsRow(S.pf, "pf", [["all", "Tất cả"], ...Object.keys(PF).map((k) => [k, PF[k][0], 1])])}<div id="list">${svcList()}</div>`,
   };
 }
+const stepper = (id, st) =>
+  `<span class="stp"><button type="button" data-act="step" data-v="${id}:1:${st}" aria-label="Tăng">${I("chevup", 16)}</button><button type="button" data-act="step" data-v="${id}:-1:${st}" aria-label="Giảm">${I("chev", 16)}</button></span>`;
 function svcPage(id) {
   const s = S.services.find((x) => x.id === id);
   if (!s)
     return {
-      head: ph("Dịch vụ", "Không tìm thấy dịch vụ"),
+      head: ph("Dịch vụ", S.services.length ? "Không tìm thấy dịch vụ" : "Đang tải dịch vụ…"),
       body: `<a class="back" href="#/services">${I("back", 18)}Trở về dịch vụ</a>`,
     };
   const pn = PF[s.platform]?.[0] || "",
-    ok = Number(s.pricePer1000) > 0,
-    feats = s.features?.length ? s.features : [{ t: s.desc, d: "" }];
+    title = splitName(s)[0],
+    cs = chansOf(s),
+    cur = selCh(s),
+    m = cur?.m || s,
+    many = cs.length > 1,
+    best = many ? cs.reduce((a, b) => (b.price < a.price ? b : a)).i : -1,
+    rows = [...cs].sort((SORTS[S.sort] || SORTS.asc)[1]),
+    qs = 10 ** Math.max(0, String(m.min || 1).length - 1),
+    feats = m.features || [],
+    notes = m.notes || [],
+    mins = cs.some((c) => c.m.needMinutes),
+    desc = groupOf(s).find((x) => x.desc)?.desc;
+  const info =
+    feats.length || notes.length
+      ? `<section class="card more-i"><button class="mi-h" data-act="info" aria-expanded="${S.info}"><span>Thông tin dịch vụ và lưu ý</span>${I("chev", 18)}</button>${S.info
+        ? `${feats.map((f) => `<div class="irow"><div class="tile c">${I("heart", 26)}</div><div><b>${esc(f.t)}</b><p>${esc(f.d)}</p></div></div>`).join("")}${notes.length ? `<div class="note">${I("info", 22)}Vui lòng kiểm tra liên kết và số lượng trước khi gửi yêu cầu.</div><ul class="nt">${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}`
+        : ""
+      }</section>`
+      : "";
   return {
-    pre: `<p class="crumb">Dịch vụ / ${pn} / <b>${esc(s.name)}</b></p><a class="back" href="#/services">${I("back", 18)}Trở về dịch vụ</a>`,
-    head: `<div class="stat"><div class="tile" style="width:84px;height:84px">${pfi(s.platform, 60)}</div><div><h1 class="pt">${esc(s.name)}</h1><small class="mut">${pn}</small><p class="sub" style="font-size:16px">${esc(s.desc)}</p></div></div>`,
-    body: `<div class="grid g2"><div><div class="card"><h2>Thông tin dịch vụ</h2>${feats.map((f) => `<div class="irow"><div class="tile c">${I("heart", 26)}</div><div><b>${esc(f.t)}</b><p>${esc(f.d)}</p></div></div>`).join("")}<div class="irow"><div class="tile">${I("bar", 26)}</div><div><b>Theo dõi tiến độ trong mục Đơn hàng</b><p>Dễ dàng kiểm tra trạng thái và tiến độ xử lý.</p></div></div></div>
-  <div class="card" style="margin-top:22px"><h2>Lưu ý trước khi đặt</h2><div class="note">${I("info", 22)}Vui lòng kiểm tra liên kết và số lượng trước khi gửi yêu cầu.</div><ul class="nt">${(s.notes || []).map((n) => `<li>${esc(n)}</li>`).join("")}</ul></div></div>
-  <div class="card"><h2>Tạo đơn hàng</h2><label class="lbl">Liên kết</label><div class="input">${I("link", 20)}<input id="o_link" data-in="calc" placeholder="Dán liên kết ${pn}" inputmode="url"></div>
-  <label class="lbl">Số lượng (${num(s.min)} – ${num(s.max)})</label><div class="input">${I("bar", 20)}<input id="o_qty" data-in="calc" inputmode="numeric" placeholder="Nhập số lượng"></div>
-  <label class="lbl">Tốc độ xử lý</label><div class="input">${I("clock", 20)}<select id="o_speed"><option>Tiêu chuẩn</option></select></div>
-  <div class="tot"><div class="tile">${I("wallet", 24)}</div><div><b style="font-size:16px;margin:0">Tổng tiền</b><small>${ok ? "Tự động tính sau khi nhập số lượng" : "Dịch vụ chưa được cấu hình giá"}</small></div><b id="o_total">–</b></div>
-  <button class="btn" data-act="order" ${ok ? "" : "disabled"}>Tiếp tục đặt đơn ${I("arrow", 20)}</button>
-  <p class="mut" style="margin-top:14px;display:flex;gap:8px">${I("info", 18)}Bạn có thể theo dõi đơn trong mục Đơn hàng</p></div></div>`,
+    pre: `<div class="ann">${I("mega", 30)}<span>Chọn dịch vụ và so sánh kênh phù hợp trước khi đặt đơn!</span></div>`,
+    head: `<div class="sh">${pfi(s.platform, 56)}<div><h1 class="pt">${pn} / ${esc(title)}</h1><p class="sub">${esc(desc || "So sánh mức giá và lựa chọn kênh phù hợp cho đơn hàng của bạn.")}</p></div></div>`,
+    body: `<section class="card oform"><div class="of ${mins ? "m3" : ""}">
+    <div class="fld fl"><label for="o_link">Link ${pn}</label><div class="inp">${I("link", 22)}<input id="o_link" data-in="calc" placeholder="Dán link ${pn}" inputmode="url" autocomplete="off"></div></div>
+    <div class="fld"><label for="o_qty">Số lượng</label><div class="inp"><input id="o_qty" data-in="calc" type="number" inputmode="numeric" min="${m.min}" max="${m.max}" value="${m.min}" placeholder="Nhập số lượng">${stepper("o_qty", qs)}</div><small class="hint">Từ ${num(m.min)} đến ${num(m.max)}</small></div>
+    ${mins ? `<div class="fld"><label for="o_min">Số phút</label><div class="inp"><input id="o_min" data-in="calc" type="number" inputmode="numeric" min="1" max="1440" value="30" placeholder="Số phút">${stepper("o_min", 5)}</div><small class="hint">Tiền = giá × số lượng × số phút</small></div>` : ""}
+  </div></section>
+  <section class="card chs"><div class="row"><h2>Chọn kênh và so sánh giá</h2><label class="sortsel">${I("sort", 22)}<select id="o_sort" data-in="sort" aria-label="Sắp xếp kênh">${Object.entries(SORTS).map(([k, v]) => `<option value="${k}" ${S.sort === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select><span class="cv">${I("chev", 18)}</span></label></div>
+  <div class="ctbl" role="radiogroup" aria-label="Danh sách kênh"><div class="chh"><span></span><span>Kênh</span><span>Giá / đơn vị</span><span>Tốc độ</span><span class="ctr">Chọn</span></div>
+  ${rows.length ? rows.map((c) => `<button type="button" class="ch ${cur?.i === c.i ? "on" : ""}" role="radio" aria-checked="${cur?.i === c.i}" data-act="ch" data-v="${c.i}"><span class="rd"></span><span class="cn">${esc(c.name)}${c.i === best ? "<em>Giá tốt</em>" : ""}</span><span class="pr">${unitP(c.price)}đ / đơn vị</span><span class="sp">${esc(c.speed)}</span><span class="rd r"></span></button>`).join("") : `<div class="empty">Dịch vụ chưa được cấu hình giá</div>`}</div>
+  <div class="ofoot"><p class="inf">${I("info", 22)}Giá có thể thay đổi theo dịch vụ và kênh.</p>
+  <div class="ttl"><div><b>Tổng thanh toán</b><small id="o_calc">Nhập số lượng để tính tiền</small></div><strong id="o_total">–</strong></div>
+  <button class="btn go" data-act="order" ${cur ? "" : "disabled"}>Đặt đơn ${I("arrow", 22)}</button></div></section>${info}`,
   };
 }
 
@@ -705,13 +829,19 @@ function supp() {
 const rid = () => crypto.randomUUID().replace(/-/g, "").slice(0, 24);
 const calcTotal = () => {
   const s = S.services.find((x) => x.id === route()[1]),
-    q = Number(val("o_qty")),
-    t = $("#o_total");
+    t = $("#o_total"),
+    d = $("#o_calc");
   if (!s || !t) return;
-  t.textContent =
-    Number.isInteger(q) && q > 0 && s.pricePer1000 > 0
-      ? vnd(Math.ceil((q * s.pricePer1000) / 1000))
-      : "–";
+  const q = Number(val("o_qty")),
+    mi = Number(val("o_min")),
+    c = selCh(s),
+    lv = !!c?.m.needMinutes,
+    ok = c && Number.isInteger(q) && q > 0 && (!lv || (Number.isInteger(mi) && mi > 0));
+  t.textContent = ok ? vnd(amount(c, q, mi)) : "–";
+  if (d)
+    d.textContent = ok
+      ? `${num(q)}${lv ? ` × ${num(mi)} phút` : ""} × ${unitP(c.price)}đ`
+      : lv ? "Nhập số lượng và số phút" : "Nhập số lượng để tính tiền";
 };
 const A = {
   tab: (_, v) => {
@@ -737,6 +867,44 @@ const A = {
     S.menu = !S.menu;
     render();
   },
+  side: () => {
+    S.side = !S.side;
+    render();
+  },
+  grp: (el, v) => {
+    S.grp[v] = el.getAttribute("aria-expanded") !== "true";
+    render();
+  },
+  sub: (el, v) => {
+    S.sub[v] = el.getAttribute("aria-expanded") !== "true";
+    render();
+  },
+  ch: (_, v) => {
+    S.ch = Number(v);
+    render();
+    const g = S.services.find((x) => x.id === route()[1]),
+      m = selCh(g)?.m,
+      q = $("#o_qty");
+    if (q && m) {
+      const n = Number(q.value);
+      if (!n || n < m.min) q.value = m.min;
+      else if (n > m.max) q.value = m.max;
+    }
+    calcTotal();
+  },
+  info: () => {
+    S.info = !S.info;
+    render();
+  },
+  step: (_, v) => {
+    const [id, d, st] = v.split(":"),
+      i = document.getElementById(id);
+    if (!i) return;
+    const lo = Number(i.min) || 0,
+      hi = Number(i.max) || Infinity;
+    i.value = Math.min(hi, Math.max(lo, (Number(i.value) || 0) + Number(d) * Number(st)));
+    calcTotal();
+  },
   logout: () => signOut(auth),
   pf: (_, v) => {
     S.pf = v;
@@ -761,7 +929,9 @@ const A = {
         ["Dịch vụ", esc(o.serviceName)],
         ["Nền tảng", PF[o.platform]?.[0] || ""],
         ["Liên kết", esc(o.link)],
+        ...(o.channel ? [["Kênh", esc(o.channel)]] : []),
         ["Số lượng", num(o.quantity)],
+        ...(o.minutes ? [["Số phút", num(o.minutes)]] : []),
         ["Tổng tiền", vnd(o.total)],
         ["Ngày tạo", fdate(o.createdAt)],
         ["Trạng thái", `<span class="st ${st[1]}">${st[0]}</span>`],
@@ -781,10 +951,14 @@ const A = {
     render();
   },
   order: async (el) => {
-    const s = S.services.find((x) => x.id === route()[1]);
+    const g = S.services.find((x) => x.id === route()[1]),
+      c = selCh(g),
+      s = c?.m; // dịch vụ thật (kênh) sẽ được đặt
     if (!s) return;
     const link = val("o_link"),
-      q = Number(val("o_qty"));
+      q = Number(val("o_qty")),
+      mi = Number(val("o_min")),
+      needMin = !!s.needMinutes;
     if (!okLink(s.platform, link))
       return toast(
         `Liên kết không hợp lệ cho ${PF[s.platform]?.[0]}. Dùng liên kết https công khai.`,
@@ -792,26 +966,31 @@ const A = {
       );
     if (!Number.isInteger(q) || q < s.min || q > s.max)
       return toast(`Số lượng phải từ ${num(s.min)} đến ${num(s.max)}`, 1);
-    if (Math.ceil((q * s.pricePer1000) / 1000) > (S.profile?.balance || 0))
+    if (needMin && (!Number.isInteger(mi) || mi < 1 || mi > 1440))
+      return toast("Số phút phải từ 1 đến 1.440", 1);
+    const total = amount(c, q, mi);
+    if (total > (S.profile?.balance || 0))
       return toast("Số dư không đủ. Vui lòng nạp thêm tiền.", 1);
     await run(el, async () => {
       // Tạo đơn + trừ tiền trong CÙNG 1 batch (atomic). Firestore Rules kiểm tra giá/số dư.
-      const total = Math.ceil((q * s.pricePer1000) / 1000),
-        code = "MS" + rid().slice(0, 8).toUpperCase(),
+      const code = "MS" + rid().slice(0, 8).toUpperCase(),
         oref = doc(collection(db, "orders")),
-        b = writeBatch(db);
-      b.set(oref, {
-        uid: S.user.uid,
-        code,
-        serviceId: s.id,
-        serviceName: s.name,
-        platform: s.platform,
-        link,
-        quantity: q,
-        total,
-        status: "pending",
-        createdAt: serverTimestamp(),
-      });
+        b = writeBatch(db),
+        rec = {
+          uid: S.user.uid,
+          code,
+          serviceId: s.id,
+          serviceName: s.name,
+          platform: s.platform,
+          link,
+          quantity: q,
+          total,
+          status: "pending",
+          createdAt: serverTimestamp(),
+        };
+      if (hasCh(s)) rec.channel = c.name; // chỉ ghi khi 1 dịch vụ có nhiều kênh trong mảng channels
+      if (s.needMinutes) rec.minutes = mi;
+      b.set(oref, rec);
       b.update(doc(db, "users", S.user.uid), {
         balance: (S.profile?.balance || 0) - total,
         lastOrder: oref.id,
@@ -904,6 +1083,10 @@ document.addEventListener("input", (e) => {
       l.innerHTML =
         r === "orders" ? ordList() : r === "support" ? faqList() : svcList();
   } else if (k === "calc") calcTotal();
+  else if (k === "sort") {
+    S.sort = e.target.value;
+    render();
+  }
   else if (k === "metric") {
     S.metric = e.target.value;
     render();
